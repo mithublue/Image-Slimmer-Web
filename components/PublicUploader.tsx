@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import axios from 'axios'
 import { Upload, CheckCircle, AlertCircle, Download, Loader2 } from 'lucide-react'
@@ -13,6 +13,8 @@ export default function PublicUploader() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<{ originalSize: number; convertedSize: number } | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [convertedPreviewUrl, setConvertedPreviewUrl] = useState<string | null>(null)
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -20,6 +22,14 @@ export default function PublicUploader() {
       setSuccess(false)
       setError(null)
       setStats(null)
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return URL.createObjectURL(acceptedFiles[0])
+      })
+      setConvertedPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
     }
   }, [])
 
@@ -60,7 +70,10 @@ export default function PublicUploader() {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      setConvertedPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return url
+      })
 
       // Calculate stats
       const originalSize = file.size
@@ -87,6 +100,13 @@ export default function PublicUploader() {
     if (!stats) return 0
     return Math.round((1 - stats.convertedSize / stats.originalSize) * 100)
   }
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (convertedPreviewUrl) URL.revokeObjectURL(convertedPreviewUrl)
+    }
+  }, [previewUrl, convertedPreviewUrl])
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -116,6 +136,27 @@ export default function PublicUploader() {
           </div>
         )}
       </div>
+
+      {(previewUrl || convertedPreviewUrl) && (
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {previewUrl && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Original Image</h3>
+              <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-100">
+                <img src={previewUrl} alt="Original preview" className="h-full w-full object-contain bg-gray-50" />
+              </div>
+            </div>
+          )}
+          {convertedPreviewUrl && (
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Converted WebP</h3>
+              <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-100">
+                <img src={convertedPreviewUrl} alt="Converted preview" className="h-full w-full object-contain bg-gray-50" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {file && (
         <button

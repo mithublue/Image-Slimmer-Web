@@ -10,10 +10,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 interface User {
   id: string
   email: string
-  apiKey: string
+  apiKey: string | null
   plan: string
   monthlyCredits: number
   creditsUsed: number
+  creditsRemaining: number
 }
 
 export default function Dashboard() {
@@ -66,13 +67,13 @@ export default function Dashboard() {
   }
 
   const getCreditsPercentage = () => {
-    if (!user) return 0
+    if (!user || user.monthlyCredits === 0) return 0
     return (user.creditsUsed / user.monthlyCredits) * 100
   }
 
   const getCreditsRemaining = () => {
     if (!user) return 0
-    return user.monthlyCredits - user.creditsUsed
+    return user.creditsRemaining ?? user.monthlyCredits - user.creditsUsed
   }
 
   if (loading) {
@@ -87,6 +88,8 @@ export default function Dashboard() {
     return null
   }
 
+  const isPro = user.plan === 'pro'
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,13 +99,19 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600 mt-1">Welcome back, {user.email}</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+              <TrendingUp className="h-4 w-4" />
+              <span>{user.creditsUsed} used</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -146,61 +155,86 @@ export default function Dashboard() {
               </li>
               <li className="flex items-center">
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Full API access
+                {isPro ? 'Full API access' : 'Upgrade to Pro for API access'}
               </li>
               <li className="flex items-center">
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Up to 10MB per image
               </li>
             </ul>
+            {!isPro && (
+              <button
+                onClick={() => router.push('/contact')}
+                className="mt-6 inline-flex items-center justify-center px-4 py-2 bg-white text-primary-600 font-medium rounded-md hover:bg-primary-50 transition-colors"
+              >
+                Upgrade to Pro
+              </button>
+            )}
           </div>
         </div>
 
-        {/* API Key Card */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <Key className="h-6 w-6 text-primary-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Your API Key</h2>
+        {/* API Access Card */}
+        {isPro && user.apiKey ? (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Key className="h-6 w-6 text-primary-600" />
+                <h2 className="text-lg font-semibold text-gray-900">Your API Key</h2>
+              </div>
+              <button
+                onClick={handleCopyApiKey}
+                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    <span>Copy Key</span>
+                  </>
+                )}
+              </button>
             </div>
+            <div className="bg-gray-50 rounded-md p-4 font-mono text-sm break-all border border-gray-200">
+              {user.apiKey}
+            </div>
+            <p className="text-sm text-gray-500 mt-2">
+              Keep your API key secure. Do not share it publicly.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <div className="flex items-center space-x-2 mb-4">
+              <Key className="h-6 w-6 text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">API Access</h2>
+            </div>
+            <p className="text-sm text-gray-600">API access is available on the Pro plan. Upgrade to unlock REST integrations.</p>
             <button
-              onClick={handleCopyApiKey}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+              onClick={() => router.push('/contact')}
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
             >
-              {copied ? (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  <span>Copy Key</span>
-                </>
-              )}
+              Talk to Sales
             </button>
           </div>
-          <div className="bg-gray-50 rounded-md p-4 font-mono text-sm break-all border border-gray-200">
-            {user.apiKey}
-          </div>
-          <p className="text-sm text-gray-500 mt-2">
-            Keep your API key secure. Do not share it publicly.
-          </p>
-        </div>
+        )}
 
         {/* API Documentation */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">API Documentation</h2>
-          <p className="text-gray-600 mb-4">
-            Use the following endpoints to integrate WebP conversion into your WooCommerce store or application:
-          </p>
+        {isPro && user.apiKey ? (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">API Documentation</h2>
+            <p className="text-gray-600 mb-4">
+              Use the following endpoints to integrate WebP conversion into your WooCommerce store or application:
+            </p>
 
-          <div className="space-y-6">
-            {/* Convert Endpoint */}
-            <div>
-              <h3 className="text-md font-semibold text-gray-900 mb-2">1. Queue Image Conversion</h3>
-              <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                <pre className="text-sm overflow-x-auto">
+            <div className="space-y-6">
+              {/* Convert Endpoint */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-900 mb-2">1. Queue Image Conversion</h3>
+                <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                  <pre className="text-sm overflow-x-auto">
 {`POST ${API_URL}/api/v1/convert
 Headers:
   x-api-key: ${user.apiKey}
@@ -215,15 +249,15 @@ Response:
   "jobId": "uuid-here",
   "message": "Image conversion job queued successfully"
 }`}
-                </pre>
+                  </pre>
+                </div>
               </div>
-            </div>
 
-            {/* Status Endpoint */}
-            <div>
-              <h3 className="text-md font-semibold text-gray-900 mb-2">2. Check Job Status & Get Converted Image</h3>
-              <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                <pre className="text-sm overflow-x-auto">
+              {/* Status Endpoint */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-900 mb-2">2. Check Job Status & Get Converted Image</h3>
+                <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                  <pre className="text-sm overflow-x-auto">
 {`GET ${API_URL}/api/v1/status/{jobId}
 Headers:
   x-api-key: ${user.apiKey}
@@ -239,15 +273,15 @@ Response (if complete):
   Content-Type: image/webp
   X-Original-Size: [bytes]
   X-Converted-Size: [bytes]`}
-                </pre>
+                  </pre>
+                </div>
               </div>
-            </div>
 
-            {/* User Info Endpoint */}
-            <div>
-              <h3 className="text-md font-semibold text-gray-900 mb-2">3. Get Your Account Info</h3>
-              <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
-                <pre className="text-sm overflow-x-auto">
+              {/* User Info Endpoint */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-900 mb-2">3. Get Your Account Info</h3>
+                <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+                  <pre className="text-sm overflow-x-auto">
 {`GET ${API_URL}/api/v1/user/me
 Headers:
   x-api-key: ${user.apiKey}
@@ -263,23 +297,31 @@ Response:
     "creditsRemaining": ${getCreditsRemaining()}
   }
 }`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* cURL Example */}
+            <div className="mt-6 p-4 bg-primary-50 border border-primary-200 rounded-md">
+              <h3 className="text-md font-semibold text-gray-900 mb-2">Example cURL Command</h3>
+              <div className="bg-white rounded-md p-3 border border-primary-300">
+                <pre className="text-xs overflow-x-auto">
+{`curl -X POST ${API_URL}/api/v1/convert \
+  -H "x-api-key: ${user.apiKey}" \
+  -F "image=@/path/to/your/image.jpg"`}
                 </pre>
               </div>
             </div>
           </div>
-
-          {/* cURL Example */}
-          <div className="mt-6 p-4 bg-primary-50 border border-primary-200 rounded-md">
-            <h3 className="text-md font-semibold text-gray-900 mb-2">Example cURL Command</h3>
-            <div className="bg-white rounded-md p-3 border border-primary-300">
-              <pre className="text-xs overflow-x-auto">
-{`curl -X POST ${API_URL}/api/v1/convert \\
-  -H "x-api-key: ${user.apiKey}" \\
-  -F "image=@/path/to/your/image.jpg"`}
-              </pre>
-            </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">API Documentation</h2>
+            <p className="text-gray-600">
+              API access and developer documentation are included with the Pro plan. Upgrade to unlock advanced integrations and automation.
+            </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
