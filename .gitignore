@@ -3,3 +3,5 @@ node_modules
 .env.local.example
 .env.local
 .env
+/.next
+.next/app-build-manifest.json
